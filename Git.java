@@ -54,6 +54,7 @@ public class Git {
     // if the printed messages are too wordy/redundant, u can set printMessages to
     // false (or just delete them)
     public static boolean printMessages = true;
+    private String workingDirName;
 
     // Git constructor checks if a git folder already exists in the parent directory
     // if a git directory doesn't exist, :
@@ -61,6 +62,8 @@ public class Git {
     // and an index file is created in the git directory
     // if a git directory already exists:
     // "Git Repository already exists" will be printed
+    //
+    //working directory is automatically named "testFolder"
     public Git() throws IOException {
         File gitFolder = new File("git");
         if (!gitFolder.exists()) {
@@ -76,6 +79,32 @@ public class Git {
             create.mkdir();
             create = new File("git/HEAD");
             create.createNewFile();
+            create = new File("git/testFolder");
+            create.mkdir();
+            workingDirName = "testFolder";
+        } else
+            System.out.println("Git Repository already exists");
+    }
+
+    //this method allows the user to name the working directory
+    public Git(String workingDirectoryName) throws IOException {
+        File gitFolder = new File("git");
+        if (!gitFolder.exists()) {
+            gitFolder.mkdir();
+            File create = new File("git/index");
+            try {
+                create.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+                ;
+            }
+            create = new File("git/objects");
+            create.mkdir();
+            create = new File("git/HEAD");
+            create.createNewFile();
+            create = new File("git/workingDirectoryName");
+            create.mkdir();
+            workingDirName = workingDirectoryName;
         } else
             System.out.println("Git Repository already exists");
     }
@@ -171,41 +200,6 @@ public class Git {
 
     // reformats the index txt file by replacing the old index with an updated
     // version.
-    private boolean reformatIndex() {
-        try {
-            File treeFormatIndex = new File("git/newIndex");
-            BufferedReader reader = new BufferedReader(new FileReader("git/index"));
-            BufferedWriter writer = new BufferedWriter(new FileWriter("git/newIndex"));
-
-            String currentLine = reader.readLine();
-            while (currentLine != null) {
-                File currentLineFile = new File(currentLine.substring(41));
-                if (!currentLine.substring(0, 4).equals("tree") && !currentLine.substring(0, 4).equals("blob")) {
-                    if (currentLineFile.exists() && currentLineFile.isFile()) {
-                        writer.write("blob ");
-                    }
-                }
-                writer.write(currentLine);
-                writer.newLine();
-                currentLine = reader.readLine();
-            }
-
-            File oldIndex = new File("git/index");
-            oldIndex.delete();
-
-            treeFormatIndex.createNewFile();
-            treeFormatIndex.renameTo(oldIndex);
-
-            reader.close();
-            writer.close();
-            return true;
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
-    }
 
     private String addDirectory(String directoryPath) throws IOException {
         if (!new File(directoryPath).canWrite()) {
