@@ -23,11 +23,11 @@ public class Git {
 
         // tests computeSHA1 method
         File testFile = new File("test.txt");
-        //System.out.println(computeSHA1("test.txt"));
+        // System.out.println(computeSHA1("test.txt"));
 
         testFile = new File("tester/1.txt");
-        //System.out.println(computeSHA1(testFile.getAbsolutePath()));
-        //System.out.println(computeSHA1("tester"));
+        // System.out.println(computeSHA1(testFile.getAbsolutePath()));
+        // System.out.println(computeSHA1("tester"));
         // System.out.println(computeSHA1("tester/empty") + "\n");
 
         // files u created
@@ -43,11 +43,16 @@ public class Git {
         // git.add("tester/emptyFile.txt");
         // git.add("");
 
-        System.out.println("\naddDirectory(String) test... Should print hash: " + git.addDirectory("tester"));
-        git.reformatIndex();
+        git.addDirectory("tester");
+        git.addDirectory("tester2");
+
+        // System.out.println("\naddDirectory(String) test... Should print hash: " +
+        // git.addDirectory("tester");
+        // git.reformatIndex();
     }
 
-    // if the printed messages are too wordy/redundant, u can set printMessages to false (or just delete them)
+    // if the printed messages are too wordy/redundant, u can set printMessages to
+    // false (or just delete them)
     public static boolean printMessages = true;
 
     // Git constructor checks if a git folder already exists in the parent directory
@@ -60,32 +65,41 @@ public class Git {
         File gitFolder = new File("git");
         if (!gitFolder.exists()) {
             gitFolder.mkdir();
-            File createIndex = new File("git/index");
+            File create = new File("git/index");
             try {
-                createIndex.createNewFile();
+                create.createNewFile();
             } catch (IOException e) {
                 e.printStackTrace();
                 ;
             }
-            File createObjects = new File("git/objects");
-            createObjects.mkdir();
+            create = new File("git/objects");
+            create.mkdir();
+            create = new File("git/HEAD");
+            create.createNewFile();
         } else
             System.out.println("Git Repository already exists");
+    }
+
+    public void commit() throws IOException{
+        File commit = new File("git/objects/commit");
+        commit.createNewFile();
     }
 
     public void add(String input) throws IOException {
         if (printMessages && !new File(input).exists()) { // just for testing; u can delete later if u don't want it
             System.out.println("Input file does not exist.");
         } else {
-            String fileHash = computeSHA1(input);
-            File hashFile = new File("git/objects/" + fileHash);
-            if (!hashFile.exists()) {
-                Files.copy(Path.of(input), Path.of(hashFile.getPath()));
-            }
-            BufferedWriter writer = new BufferedWriter(new FileWriter("git/index", true));
-            writer.write(fileHash + " " + input);
-            writer.newLine();
-            writer.close();
+            if (new File(input).isFile()) {
+                String fileHash = computeSHA1(input);
+                File hashFile = new File("git/objects/" + fileHash);
+                if (!hashFile.exists()) {
+                    Files.copy(Path.of(input), Path.of(hashFile.getPath()));
+                }
+                BufferedWriter writer = new BufferedWriter(new FileWriter("git/index", true));
+                writer.write("blob " + fileHash + " " + input);
+                writer.newLine();
+                writer.close();
+            } else{ addDirectory(input);}
         }
     }
 
@@ -104,7 +118,7 @@ public class Git {
 
         // recursively deletes all files in git directory
         for (File file : toDelete) {
-            if(file.isDirectory()){
+            if (file.isDirectory()) {
                 deleteFolder(file.getPath());
             }
             file.delete();
@@ -155,8 +169,9 @@ public class Git {
         }
     }
 
-    // reformats the index txt file by replacing the old index with an updated version.
-    public boolean reformatIndex() {
+    // reformats the index txt file by replacing the old index with an updated
+    // version.
+    private boolean reformatIndex() {
         try {
             File treeFormatIndex = new File("git/newIndex");
             BufferedReader reader = new BufferedReader(new FileReader("git/index"));
@@ -165,7 +180,7 @@ public class Git {
             String currentLine = reader.readLine();
             while (currentLine != null) {
                 File currentLineFile = new File(currentLine.substring(41));
-                if (!currentLine.substring(0,4).equals("tree") && !currentLine.substring(0,4).equals("blob")) {
+                if (!currentLine.substring(0, 4).equals("tree") && !currentLine.substring(0, 4).equals("blob")) {
                     if (currentLineFile.exists() && currentLineFile.isFile()) {
                         writer.write("blob ");
                     }
@@ -180,7 +195,7 @@ public class Git {
 
             treeFormatIndex.createNewFile();
             treeFormatIndex.renameTo(oldIndex);
-            
+
             reader.close();
             writer.close();
             return true;
@@ -189,10 +204,10 @@ public class Git {
             e.printStackTrace();
             return false;
         }
-        
+
     }
 
-    public String addDirectory(String directoryPath) throws IOException {
+    private String addDirectory(String directoryPath) throws IOException {
         if (!new File(directoryPath).canWrite()) {
             System.out.println("The given directory is inaccessible.");
             return "";
@@ -203,12 +218,15 @@ public class Git {
         }
         String hashOfTree = recursiveAddDirectory(directoryPath, 0);
 
-        if (printMessages) System.out.println("Successfully added directory!");
+        if (printMessages)
+            System.out.println("Successfully added directory!");
         return hashOfTree;
     }
 
-    // recursively adds given directory while also adding its own files and subdirectories.
-    // the numberOfTrees parameter helps keep track of which tree's file you are currently editing.
+    // recursively adds given directory while also adding its own files and
+    // subdirectories.
+    // the numberOfTrees parameter helps keep track of which tree's file you are
+    // currently editing.
     private String recursiveAddDirectory(String directoryPath, int numberOfTrees) throws IOException {
         File currentDirectory = new File(directoryPath);
         File[] listOfContents = currentDirectory.listFiles();
@@ -220,19 +238,21 @@ public class Git {
 
         File treeFile = new File("git/objects/tree" + numberOfTrees);
         BufferedWriter writeToTree = new BufferedWriter(new FileWriter(treeFile));
-        
+
         for (File currFile : listOfContents) {
             if (currFile.isFile()) {
-                writeToTree.write("blob " + recursiveAddDirectory(currFile.getPath(), numberOfTrees+1) + " " + currFile.getName());
+                writeToTree.write("blob " + recursiveAddDirectory(currFile.getPath(), numberOfTrees + 1) + " "
+                        + currFile.getPath());
                 writeToTree.newLine();
             } else {
-                writeToTree.write("tree " + recursiveAddDirectory(currFile.getPath(), numberOfTrees+1) + " " + currFile.getName());
+                writeToTree.write("tree " + recursiveAddDirectory(currFile.getPath(), numberOfTrees + 1) + " "
+                        + currFile.getPath());
                 writeToTree.newLine();
             }
         }
         writeToTree.close();
 
-        String hashOfTree = computeSHA1("git/objects/tree"+numberOfTrees);
+        String hashOfTree = computeSHA1("git/objects/tree" + numberOfTrees);
         treeFile.renameTo(new File("git/objects/" + computeSHA1("git/objects/tree" + numberOfTrees)));
 
         BufferedWriter writer = new BufferedWriter(new FileWriter("git/index", true));
