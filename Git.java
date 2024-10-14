@@ -3,6 +3,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -12,9 +13,10 @@ import java.io.FileWriter;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
-public class Git {
+public class Git implements GitInterface {
     public static void main(String[] args) throws IOException {
         // deletes all git files created by last test run
         deleteGit();
@@ -53,6 +55,8 @@ public class Git {
         f.close();
 
         git.stage(file1.getPath());
+
+        git.commit("manos", "work please again thank you");
 
         // System.out.println("\naddDirectory(String) test... Should print hash: " +
         // git.addDirectory("tester");
@@ -107,13 +111,8 @@ public class Git {
         }
     }
 
-    public void firstCommit() throws IOException {
-        File commit = new File("git/objects/commit");
-        commit.createNewFile();
-    }
-
-    public String commit(String author, String comment) throws IOException {
-        String folderHash = addDirectory("git/testFolder");
+    public String commit(String author, String comment) {
+        try{String folderHash = addDirectory("git/testFolder");
 
         File comm = new File("git/commit" + numOfCommits);
         comm.createNewFile();
@@ -129,10 +128,16 @@ public class Git {
             bw.write("parent: " + "\n");
             st.append("parent: " + "\n");
         }
-        bw.write("name: " + author + "\n");
-        st.append("name: " + author + "\n");
-        bw.write("date: do this soon please" + "\n");
-        st.append("date: do this soon please" + "\n");
+        bw.write("author: " + author + "\n");
+        st.append("author: " + author + "\n");
+
+        LocalDateTime currentDate = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd-yyyy");
+        String formattedDate = currentDate.format(formatter);
+        bw.write("date: " + formattedDate + "\n");
+        st.append("date: " + formattedDate + "\n");
+
+
         bw.write("message: " + comment + "\n");
         st.append("message: " + comment + "\n");
         bw.close();
@@ -151,25 +156,33 @@ public class Git {
 
         numOfCommits++;
         mostRecentCommitHash = commHash;
-        return mostRecentCommitHash;
+        return mostRecentCommitHash;}
+        catch (IOException e){
+            e.printStackTrace();
+        }
+        return "commit failed";
     }
 
-    public void stage(String input) throws IOException {
+    public void stage(String input) {
         if (printMessages && !new File(input).exists()) { // just for testing; u can delete later if u don't want it
             System.out.println("Input file does not exist.");
         } else {
-            if (new File(input).isFile()) {
-                String fileHash = computeSHA1(input);
-                File hashFile = new File("git/objects/" + fileHash);
-                if (!hashFile.exists()) {
-                    Files.copy(Path.of(input), Path.of(hashFile.getPath()));
+            try {
+                if (new File(input).isFile()) {
+                    String fileHash = computeSHA1(input);
+                    File hashFile = new File("git/objects/" + fileHash);
+                    if (!hashFile.exists()) {
+                        Files.copy(Path.of(input), Path.of(hashFile.getPath()));
+                    }
+                    BufferedWriter writer = new BufferedWriter(new FileWriter("git/index", true));
+                    writer.write("blob " + fileHash + " " + input.substring(4));
+                    writer.newLine();
+                    writer.close();
+                } else {
+                    addDirectory(input);
                 }
-                BufferedWriter writer = new BufferedWriter(new FileWriter("git/index", true));
-                writer.write("blob " + fileHash + " " + input.substring(4));
-                writer.newLine();
-                writer.close();
-            } else {
-                addDirectory(input);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -243,7 +256,7 @@ public class Git {
     // reformats the index txt file by replacing the old index with an updated
     // version.
 
-    private String addDirectory(String directoryPath) throws IOException {
+    private String addDirectory(String directoryPath) {
         if (!new File(directoryPath).canWrite()) {
             System.out.println("The given directory is inaccessible.");
             return "";
@@ -252,7 +265,13 @@ public class Git {
             System.out.println("The given directory does not exist.");
             return "";
         }
-        String hashOfTree = recursiveAddDirectory(directoryPath, 0);
+        String hashOfTree = "";
+        try {
+            hashOfTree = recursiveAddDirectory(directoryPath, 0);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 
         checkLines();
 
@@ -261,25 +280,29 @@ public class Git {
         return hashOfTree;
     }
 
-    public static void checkLines() throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader("git/index"));
-        HashSet<String> lines = new HashSet<String>();
+    public static void checkLines() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("git/index"));
+            HashSet<String> lines = new HashSet<String>();
 
-        while (br.ready()) {
-            String str = br.readLine();
-            if (!lines.contains(str)) {
-                lines.add(str);
+            while (br.ready()) {
+                String str = br.readLine();
+                if (!lines.contains(str)) {
+                    lines.add(str);
+                }
             }
-        }
-        br.close();
+            br.close();
 
-        BufferedWriter bw = new BufferedWriter(new FileWriter("git/index"));
-        Object[] str = lines.toArray();
-        for (Object s : str) {
-            bw.write((String) s);
-            bw.newLine();
+            BufferedWriter bw = new BufferedWriter(new FileWriter("git/index"));
+            Object[] str = lines.toArray();
+            for (Object s : str) {
+                bw.write((String) s);
+                bw.newLine();
+            }
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        bw.close();
     }
 
     // recursively adds given directory while also adding its own files and
@@ -320,5 +343,15 @@ public class Git {
         writer.close();
 
         return hashOfTree;
+    }
+
+    public void checkout(String commitHash) {
+        BufferedReader reader;
+        try {
+            reader = new BufferedReader(new FileReader("git/" + commitHash));
+        } catch (FileNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 }
