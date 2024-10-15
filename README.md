@@ -5,4 +5,4 @@
 
 3. i did not code checkout
 
-4. i ran into an issue with adding the same files multiple times while committing, but fixed them by calling the addDirectory method instead of just the add method.
+4. i ran into an issue with adding the same files multiple times while committing, but fixed them by adding a method that erases duplicate lines in the index file after committing..
